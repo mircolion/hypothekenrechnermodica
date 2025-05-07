@@ -11,8 +11,8 @@ app.title = "Hypothekenrechner"
 # Aktuelle Zinssätze automatisch abrufen
 def get_current_rates():
     try:
-        saron = 1.25  # Hier könnte der SARON automatisch über eine API abgerufen werden
-        festhypothek_5 = 1.8  # Beispielwerte
+        saron = 1.25
+        festhypothek_5 = 1.8
         festhypothek_10 = 2.2
         return saron, festhypothek_5, festhypothek_10
     except:
@@ -20,100 +20,63 @@ def get_current_rates():
 
 saron, festhypothek_5, festhypothek_10 = get_current_rates()
 
-background_style = {
-    "backgroundImage": "url('https://raw.githubusercontent.com/mircolion/wohnungsvergleichmodica/main/woods.jpg')",
-    "backgroundSize": "cover",
-    "backgroundRepeat": "no-repeat",
-    "backgroundPosition": "center",
-    "minHeight": "100vh",
-    "padding": "30px",
-    "fontFamily": "Arial Narrow",
-    "backgroundColor": "rgba(255, 255, 255, 0.25)",
-    "backgroundBlendMode": "lighten"
-}
+app.layout = dbc.Container([
+    html.H1("Hypothekenrechner", className="my-4"),
+    dbc.Row([
+        dbc.Col([dbc.Label("Kaufpreis der Liegenschaft (CHF)"), dbc.Input(id="kaufpreis", type="number", value=500000)]),
+        dbc.Col([dbc.Label("Eigenkapital (CHF)"), dbc.Input(id="eigenkapital", type="number", value=100000)]),
+        dbc.Col([dbc.Label("Jährliches Bruttoeinkommen (CHF)"), dbc.Input(id="einkommen", type="number", value=80000)])
+    ], className="mb-3"),
 
-app.layout = html.Div(style=background_style, children=[
-    dbc.Container([
-        html.H1("Hypothekenrechner"),
-        html.Hr(),
+    dbc.Row([
+        dbc.Col([dbc.Label("Hypothekentyp"), dcc.Dropdown(id="hypothektyp", options=[
+            {"label": "SARON", "value": "saron"},
+            {"label": "5 Jahre Festhypothek", "value": "fest5"},
+            {"label": "10 Jahre Festhypothek", "value": "fest10"}
+        ], value="saron")]),
+    ]),
 
-        dbc.Row([
-            dbc.Col([
-                dbc.Label("Kaufpreis der Liegenschaft (CHF)"),
-                dbc.Input(id='kaufpreis', type='number', value=800000)
-            ]),
-            dbc.Col([
-                dbc.Label("Eigenkapital (CHF)"),
-                dbc.Input(id='eigenkapital', type='number', value=200000)
-            ])
-        ]),
-
-        html.Br(),
-
-        dbc.Row([
-            dbc.Col([
-                dbc.Label("Zinstyp"),
-                dcc.Dropdown(
-                    id='zinssatztyp',
-                    options=[
-                        {"label": "SARON", "value": "SARON"},
-                        {"label": "Festhypothek 5 Jahre", "value": "Festhypothek 5"},
-                        {"label": "Festhypothek 10 Jahre", "value": "Festhypothek 10"}
-                    ],
-                    value="SARON"
-                )
-            ]),
-            dbc.Col([
-                dbc.Label("Zinssatz (%)"),
-                dcc.Input(id='zinssatz', type='number', value=saron, readOnly=True)
-            ])
-        ]),
-
-        html.Br(),
-
-        dbc.Button("Berechnen", id='berechnen', color='success', style={"fontFamily": "Arial Narrow"}),
-        html.Br(), html.Br(),
-        html.Div(id='ergebnis')
-    ])
+    html.Br(),
+    html.Div(id="ergebnis")
 ])
 
 @app.callback(
-    Output('zinssatz', 'value'),
-    Input('zinssatztyp', 'value')
+    Output("ergebnis", "children"),
+    Input("kaufpreis", "value"),
+    Input("eigenkapital", "value"),
+    Input("einkommen", "value"),
+    Input("hypothektyp", "value")
 )
-def update_zinssatz(typ):
-    if typ == "SARON":
-        return saron
-    elif typ == "Festhypothek 5":
-        return festhypothek_5
-    elif typ == "Festhypothek 10":
-        return festhypothek_10
-
-@app.callback(
-    Output('ergebnis', 'children'),
-    Input('berechnen', 'n_clicks'),
-    State('kaufpreis', 'value'),
-    State('eigenkapital', 'value'),
-    State('zinssatz', 'value')
-)
-def berechne_hypothek(n_clicks, kaufpreis, eigenkapital, zinssatz):
-    if not n_clicks:
-        return ""
+def update_ergebnis(kaufpreis, eigenkapital, einkommen, hypothektyp):
+    if not all([kaufpreis, eigenkapital, einkommen]):
+        return "Bitte alle Felder ausfüllen."
 
     hypothek = kaufpreis - eigenkapital
-    jahreszins = zinssatz / 100
-    jahreskosten = hypothek * jahreszins
-    monatliche_kosten = jahreskosten / 12
 
-    tragbarkeit = (monatliche_kosten * 12) / (0.33 * kaufpreis)
+    if hypothek <= 0:
+        return "Eigenkapital deckt den Kaufpreis vollständig."
 
-    return dbc.Card([
-        dbc.CardBody([
-            html.H4("Ergebnisse", className="card-title"),
-            html.P(f"Hypothekenbetrag: CHF {hypothek:,.2f}"),
-            html.P(f"Monatliche Zinskosten: CHF {monatliche_kosten:,.2f}"),
-            html.P(f"Tragbarkeit: {tragbarkeit:.2%}")
-        ])
+    if hypothektyp == "saron":
+        zinssatz = saron
+    elif hypothektyp == "fest5":
+        zinssatz = festhypothek_5
+    else:
+        zinssatz = festhypothek_10
+
+    jahreszins = hypothek * (zinssatz / 100)
+    monatliche_zinszahlung = jahreszins / 12
+
+    # Tragbarkeit berechnen (max 33% des Bruttoeinkommens)
+    tragbarkeit = einkommen * 0.33
+    tragbar = "Ja" if jahreszins <= tragbarkeit else "Nein"
+
+    return html.Div([
+        html.H4(f"Hypothekenbetrag: CHF {hypothek:,.2f}"),
+        html.P(f"Zinssatz: {zinssatz:.2f}%"),
+        html.P(f"Monatliche Zinszahlung: CHF {monatliche_zinszahlung:,.2f}"),
+        html.P(f"Jährliche Zinszahlung: CHF {jahreszins:,.2f}"),
+        html.Hr(),
+        html.P(f"Tragbarkeit: {tragbar} (Max. Belastung: CHF {tragbarkeit:,.2f})")
     ])
 
 if __name__ == "__main__":
