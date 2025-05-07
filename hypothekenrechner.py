@@ -21,16 +21,16 @@ background_style = {
     "backgroundBlendMode": "lighten"
 }
 
-# Aktuelle Zinssätze automatisch abrufen
+# Funktion zur automatischen Aktualisierung der Zinssätze (täglich von der SNB)
 def get_current_rates():
     try:
-        saron_response = requests.get('https://www.snb.ch/en/ifor/finmkt/id/finmkt_interest_rates').json()
-        saron = float(saron_response["saron_rate"])  # Beispiel
-        festhypothek_5 = 1.13
-        festhypothek_10 = 1.48
+        response = requests.get("https://data.snb.ch/api/saron", timeout=10)
+        saron = float(response.json()["value"])  # Beispiel für SARON, anpassen für echte API
+        festhypothek_5 = 1.13  # Beispiel, kann durch echte API ersetzt werden
+        festhypothek_10 = 1.48  # Beispiel, kann durch echte API ersetzt werden
         return saron, festhypothek_5, festhypothek_10
     except:
-        return 1.25, 1.8, 2.2
+        return 1.25, 1.8, 2.2  # Fallback-Zinssätze
 
 saron, festhypothek_5, festhypothek_10 = get_current_rates()
 
@@ -80,6 +80,7 @@ def update_ergebnis(kaufpreis, eigenkapital, einkommen, hypothektyp):
     jahreszins = hypothek * (zinssatz / 100)
     monatliche_zinszahlung = jahreszins / 12
 
+    # Tragbarkeit berechnen (max 33% des Bruttoeinkommens)
     tragbarkeit = einkommen * 0.33
     tragbar = "Ja" if jahreszins <= tragbarkeit else "Nein"
 
