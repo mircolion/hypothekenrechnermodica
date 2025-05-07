@@ -8,12 +8,26 @@ import os
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "Hypothekenrechner"
 
+# Hintergrundbild und Layout-Stil
+background_style = {
+    "backgroundImage": "url('https://raw.githubusercontent.com/mircolion/wohnungsvergleichmodica/main/woods.jpg')",
+    "backgroundSize": "cover",
+    "backgroundRepeat": "no-repeat",
+    "backgroundPosition": "center",
+    "minHeight": "100vh",
+    "padding": "30px",
+    "fontFamily": "Arial Narrow",
+    "backgroundColor": "rgba(255, 255, 255, 0.25)",
+    "backgroundBlendMode": "lighten"
+}
+
 # Aktuelle Zinssätze automatisch abrufen
 def get_current_rates():
     try:
-        saron = 1.25
-        festhypothek_5 = 1.8
-        festhypothek_10 = 2.2
+        saron_response = requests.get('https://www.snb.ch/en/ifor/finmkt/id/finmkt_interest_rates').json()
+        saron = float(saron_response["saron_rate"])  # Beispiel
+        festhypothek_5 = 1.13
+        festhypothek_10 = 1.48
         return saron, festhypothek_5, festhypothek_10
     except:
         return 1.25, 1.8, 2.2
@@ -38,7 +52,7 @@ app.layout = dbc.Container([
 
     html.Br(),
     html.Div(id="ergebnis")
-])
+], style=background_style)
 
 @app.callback(
     Output("ergebnis", "children"),
@@ -66,7 +80,6 @@ def update_ergebnis(kaufpreis, eigenkapital, einkommen, hypothektyp):
     jahreszins = hypothek * (zinssatz / 100)
     monatliche_zinszahlung = jahreszins / 12
 
-    # Tragbarkeit berechnen (max 33% des Bruttoeinkommens)
     tragbarkeit = einkommen * 0.33
     tragbar = "Ja" if jahreszins <= tragbarkeit else "Nein"
 
