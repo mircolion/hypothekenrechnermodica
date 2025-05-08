@@ -21,19 +21,6 @@ background_style = {
     "backgroundBlendMode": "lighten"
 }
 
-# Funktion zur automatischen Aktualisierung der Zinssätze (täglich von der SNB)
-def get_current_rates():
-    try:
-        response = requests.get("https://data.snb.ch/api/saron", timeout=10)
-        saron = float(response.json()["value"])  # Beispiel für SARON, anpassen für echte API
-        festhypothek_5 = 1.13  # Beispiel, kann durch echte API ersetzt werden
-        festhypothek_10 = 1.48  # Beispiel, kann durch echte API ersetzt werden
-        return saron, festhypothek_5, festhypothek_10
-    except:
-        return 1.25, 1.8, 2.2  # Fallback-Zinssätze
-
-saron, festhypothek_5, festhypothek_10 = get_current_rates()
-
 app.layout = dbc.Container([
     html.H1("Hypothekenrechner", className="my-4"),
     dbc.Row([
@@ -66,29 +53,36 @@ def update_ergebnis(kaufpreis, eigenkapital, einkommen, hypothektyp):
         return "Bitte alle Felder ausfüllen."
 
     hypothek = kaufpreis - eigenkapital
-
     if hypothek <= 0:
         return "Eigenkapital deckt den Kaufpreis vollständig."
 
-    if hypothektyp == "saron":
-        zinssatz = saron
-    elif hypothektyp == "fest5":
-        zinssatz = festhypothek_5
-    else:
-        zinssatz = festhypothek_10
+    # Zinssätze und Belehnung
+    zinssatz_1 = 5.0
+    zinssatz_2 = 6.0
+    belehnung = 0.8
 
-    jahreszins = hypothek * (zinssatz / 100)
-    monatliche_zinszahlung = jahreszins / 12
+    # Berechnung der Hypothek
+    hypothek_1 = hypothek * 0.66
+    hypothek_2 = hypothek * 0.14
 
-    # Tragbarkeit berechnen (max 33% des Bruttoeinkommens)
+    jahreszins_1 = hypothek_1 * (zinssatz_1 / 100)
+    jahreszins_2 = hypothek_2 * (zinssatz_2 / 100)
+    gesamtkosten = jahreszins_1 + jahreszins_2 + (kaufpreis * 0.01)
+
+    # Nebenkosten
+    nebenzinsen = kaufpreis * 0.01
+
+    # Tragbarkeit
     tragbarkeit = einkommen * 0.33
-    tragbar = "Ja" if jahreszins <= tragbarkeit else "Nein"
+    tragbar = "Ja" if gesamtkosten <= tragbarkeit else "Nein"
 
     return html.Div([
         html.H4(f"Hypothekenbetrag: CHF {hypothek:,.2f}"),
-        html.P(f"Zinssatz: {zinssatz:.2f}%"),
-        html.P(f"Monatliche Zinszahlung: CHF {monatliche_zinszahlung:,.2f}"),
-        html.P(f"Jährliche Zinszahlung: CHF {jahreszins:,.2f}"),
+        html.P(f"1. Hypothek: CHF {hypothek_1:,.2f} @ {zinssatz_1:.2f}%"),
+        html.P(f"2. Hypothek: CHF {hypothek_2:,.2f} @ {zinssatz_2:.2f}%"),
+        html.P(f"Monatliche Kosten: CHF {(gesamtkosten / 12):,.2f}"),
+        html.P(f"Jährliche Kosten: CHF {gesamtkosten:,.2f}"),
+        html.P(f"Nebenkosten: CHF {nebenzinsen:,.2f}"),
         html.Hr(),
         html.P(f"Tragbarkeit: {tragbar} (Max. Belastung: CHF {tragbarkeit:,.2f})")
     ])
