@@ -3,9 +3,9 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 import os
-import weasyprint
 import io
-from flask import send_file, Flask
+from xhtml2pdf import pisa
+from flask import send_file, Flask, make_response
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -19,7 +19,7 @@ background_style = {
     "minHeight": "100vh",
     "padding": "30px",
     "fontFamily": "Arial Narrow",
-    "backgroundColor": "rgba(255, 255, 255, 0.25)",
+    "backgroundColor": "rgba(255, 255, 255, 0.85)",
     "backgroundBlendMode": "lighten"
 }
 
@@ -89,7 +89,7 @@ def calculate(kaufpreis, eigenkapital, cash, saule2, saule3, amortisation):
 
 @app.server.route("/download_pdf")
 def download_pdf():
-    html_content = """
+    pdf_content = """
     <h1>Hypothekenrechner - PDF</h1>
     <p>Ihre Berechnung:</p>
     <ul>
@@ -100,8 +100,11 @@ def download_pdf():
         <li>Jährliche Amortisation: CHF 15,150.00</li>
     </ul>
     """
-    pdf = weasyprint.HTML(string=html_content).write_pdf()
-    return send_file(io.BytesIO(pdf), as_attachment=True, download_name="Hypothekenrechner_Berechnung.pdf")
+    pdf_file = io.BytesIO()
+    pisa.CreatePDF(io.StringIO(pdf_content), pdf_file)
+    pdf_file.seek(0)
+    
+    return send_file(pdf_file, as_attachment=True, download_name="Hypothekenrechner_Berechnung.pdf")
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8050)
