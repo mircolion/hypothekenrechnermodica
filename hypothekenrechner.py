@@ -3,9 +3,12 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 import os
-import pdfkit
+import io
+from xhtml2pdf import pisa
+from flask import send_file, Flask
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = Flask(__name__)
+app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "Hypothekenrechner"
 
 app.layout = dbc.Container([
@@ -65,42 +68,40 @@ app.layout = dbc.Container([
 def calculate(kaufpreis, eigenkapital, cash, saule2, saule3, einkommen, amortisation, hypothektyp):
     total_equity = eigenkapital + cash + saule2 + saule3
     loan_amount = kaufpreis - total_equity
-    if loan_amount <= 0:
-        return "Eigenkapital deckt den Kaufpreis vollständig."
 
     interest_rate = {"saron": 1.25, "fest5": 1.8, "fest10": 2.2}[hypothektyp]
     yearly_interest = loan_amount * (interest_rate / 100)
-    monthly_interest = yearly_interest / 12
     amortization_payment = loan_amount / amortisation
 
     return html.Div([
-        html.H4(f"Gesamtes Eigenkapital: CHF {total_equity:,.2f}", style={"fontWeight": "bold", "color": "white"}),
-        html.H4(f"Hypothekenbetrag: CHF {loan_amount:,.2f}", style={"fontWeight": "bold", "color": "white"}),
-        html.P(f"Zinssatz: {interest_rate:.2f}%", style={"fontWeight": "bold", "color": "white"}),
-        html.P(f"Jährliche Zinszahlung: CHF {yearly_interest:,.2f}", style={"fontWeight": "bold", "color": "white"}),
-        html.P(f"Monatliche Zinszahlung: CHF {monthly_interest:,.2f}", style={"fontWeight": "bold", "color": "white"}),
-        html.P(f"Jährliche Amortisation: CHF {amortization_payment:,.2f}", style={"fontWeight": "bold", "color": "white"})
+        html.H4(f"Gesamtes Eigenkapital: CHF {total_equity:,.2f}", style={"color": "white"}),
+        html.H4(f"Hypothekenbetrag: CHF {loan_amount:,.2f}", style={"color": "white"}),
+        html.P(f"Zinssatz: {interest_rate:.2f}%", style={"color": "white"}),
+        html.P(f"Jährliche Zinszahlung: CHF {yearly_interest:,.2f}", style={"color": "white"}),
+        html.P(f"Jährliche Amortisation: CHF {amortization_payment:,.2f}", style={"color": "white"})
     ])
 
-@app.callback(
-    Output("download_pdf", "data"),
-    Input("download_pdf", "n_clicks"),
-    State("name", "value"),
-    State("adresse", "value"),
-    State("alter", "value"),
-    prevent_initial_call=True
-)
-def download_pdf(n_clicks, name, adresse, alter):
+@app.server.route("/download_pdf")
+def download_pdf():
     pdf_content = f"""
     <h1>Hypothekenrechner</h1>
-    <p>Name: {name}</p>
-    <p>Adresse des Objekts: {adresse}</p>
-    <p>Alter: {alter}</p>
+    <p>Hypothekenberechnung für Ihr Objekt</p>
+    <ul>
+        <li>Name: {name}</li>
+        <li>Adresse: {adresse}</li>
+        <li>Alter: {alter}</li>
+        <li>Gesamtes Eigenkapital: CHF {total_equity:,.2f}</li>
+        <li>Hypothekenbetrag: CHF {loan_amount:,.2f}</li>
+        <li>Zinssatz: {interest_rate:.2f}%</li>
+        <li>Jährliche Zinszahlung: CHF {yearly_interest:,.2f}</li>
+        <li>Jährliche Amortisation: CHF {amortization_payment:,.2f}</li>
+    </ul>
     """
+    pdf = io.BytesIO()
+    pisa.CreatePDF(io.StringIO(pdf_content), pdf)
+    pdf.seek(0)
     
-    pdfkit.from_string(pdf_content, "Hypothekenrechner_Berechnung.pdf")
-    return dcc.send_file("Hypothekenrechner_Berechnung.pdf")
+    return send_file(pdf, as_attachment=True, download_name="Hypothekenrechner_Berechnung.pdf")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8050))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=8050)
