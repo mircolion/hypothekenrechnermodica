@@ -75,7 +75,7 @@ app.layout = dbc.Container([
 def calculate(kaufpreis, eigenkapital, cash, saule2, saule3, amortisation):
     total_equity = eigenkapital + cash + saule2 + saule3
     loan_amount = kaufpreis - total_equity
-    interest_rate = 5.0  # 5% as specified
+    interest_rate = 5.0
     yearly_interest = loan_amount * (interest_rate / 100)
     amortization_payment = loan_amount / amortisation
 
@@ -90,15 +90,20 @@ def calculate(kaufpreis, eigenkapital, cash, saule2, saule3, amortisation):
 @app.server.route("/download_pdf")
 def download_pdf():
     pdf_content = """
-    <h1>Hypothekenrechner - PDF</h1>
-    <p>Ihre Berechnung:</p>
-    <ul>
-        <li>Gesamtes Eigenkapital: CHF 104,000.00</li>
-        <li>Hypothekenbetrag: CHF 303,000.00</li>
-        <li>Zinssatz: 5.00%</li>
-        <li>Jährliche Zinszahlung: CHF 7,787.50</li>
-        <li>Jährliche Amortisation: CHF 15,150.00</li>
-    </ul>
+    <html>
+    <head><title>Hypothekenrechner PDF</title></head>
+    <body style="font-family: Arial; padding: 20px;">
+        <h1>Hypothekenrechner - PDF</h1>
+        <p><strong>Ihre Berechnung:</strong></p>
+        <ul>
+            <li>Gesamtes Eigenkapital: CHF 104,000.00</li>
+            <li>Hypothekenbetrag: CHF 303,000.00</li>
+            <li>Zinssatz: 5.00%</li>
+            <li>Jährliche Zinszahlung: CHF 7,787.50</li>
+            <li>Jährliche Amortisation: CHF 15,150.00</li>
+        </ul>
+    </body>
+    </html>
     """
     pdf_file = io.BytesIO()
     pisa.CreatePDF(io.StringIO(pdf_content), pdf_file)
